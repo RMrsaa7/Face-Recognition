@@ -36,31 +36,48 @@ def findEncodings(images):
     encodeList = []
     for img in images:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        face_landmarks_list = face_recognition.face_landmarks(img)
-        for face_landmarks in face_landmarks_list:
-            top_lip = face_landmarks['top_lip']
-            bottom_lip = face_landmarks['bottom_lip']
-            nose_tip = face_landmarks['nose_tip']
         encode = face_recognition.face_encodings(img)
         if encode:
             encodeList.append(encode[0])
     return encodeList
 
+def find_camera_index(max_index=20):
+    print("Mencari indeks kamera...")
+    for index in range(max_index):
+        cap = cv2.VideoCapture(index)
+        if cap.isOpened():
+            print(f"Kamera ditemukan pada indeks {index}")
+            cap.release()
+            return index
+        cap.release()
+    print("Tidak ada kamera yang terdeteksi.")
+    return None
+
+camera_index = find_camera_index()
+
 col1, col2 = st.columns(2)
-cap = cv2.VideoCapture(0)
 
 if choice == 'SCAN':
     with col1:
         st.subheader("SCAN WAJAH")
         run = st.checkbox("Nyalakan kamera")
 
-    if run:
+    if run and camera_index is not None:
+        cap = cv2.VideoCapture(camera_index)
+        cap.set(3, 320)  # Lebar dikurangi menjadi 320
+        cap.set(4, 240)  # Tinggi dikurangi menjadi 240
         encodeListKnown = findEncodings(images)
         print('Encoding complete!')
+
         while run:
             success, img = cap.read()
+            if not success:
+                st.write("Gagal membaca frame dari kamera.")
+                break
+
             imgS = cv2.resize(img, (0, 0), None, 0.5, 0.5)
-            imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
+            img_gray = cv2.cvtColor(imgS, cv2.COLOR_BGR2GRAY)
+            imgS = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
 
             faceCurFrame = face_recognition.face_locations(imgS)
             encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
@@ -85,8 +102,10 @@ if choice == 'SCAN':
 
             FRAME_WINDOW.image(img)
             cv2.waitKey(1)
-    else:
+
         cap.release()
+    else:
+        st.write("Tidak ada kamera eksternal yang ditemukan atau kamera tidak diaktifkan.")
 
 elif choice == 'HOME':
     with col1:
